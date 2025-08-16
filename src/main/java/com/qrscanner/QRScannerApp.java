@@ -25,7 +25,7 @@ public class QRScannerApp extends JFrame {
     private static final String APP_NAME = "QR WiFi Scanner";
     private static final String VERSION = "1.0.0";
     // IMPORTANT: Replace this with the raw URL to your version.txt file
-    private static final String UPDATE_URL = "https://raw.githubusercontent.com/your-username/your-repo/main/version.txt";
+    private static final String UPDATE_URL = "https://raw.githubusercontent.com/JayJay247in/qr-wifi-scanner/refs/heads/main/version.txt";
 
     private CameraPanel cameraPanel;
     private QRProcessor qrProcessor;
