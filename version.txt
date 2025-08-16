@@ -1,2 +1,2 @@
 1.0.0
-PLACEHOLDER_URL
+https://github.com/JayJay247in/qr-wifi-scanner/releases/download/v1.0.0/qr-wifi-scanner-1.0.0.jar
