@@ -24,35 +24,37 @@ import java.util.Map;
 public class QRScannerApp extends JFrame {
     private static final String APP_NAME = "QR WiFi Scanner";
     private static final String VERSION = "1.0.0";
-    // IMPORTANT: Replace this with the raw URL to your version.txt file
     private static final String UPDATE_URL = "https://raw.githubusercontent.com/JayJay247in/qr-wifi-scanner/refs/heads/main/version.txt";
 
+    private final SettingsManager settingsManager;
+    private final ScanHistoryManager historyManager;
+    private final HotkeyManager hotkeyManager;
+    
     private CameraPanel cameraPanel;
     private QRProcessor qrProcessor;
     private SystemTrayManager trayManager;
-    private ScanHistoryManager historyManager;
-    private HotkeyManager hotkeyManager;
     private JLabel statusLabel;
     private JButton scanButton;
     
     public QRScannerApp() {
-        this.historyManager = new ScanHistoryManager();
+        this.settingsManager = new SettingsManager();
+        this.historyManager = new ScanHistoryManager(settingsManager);
+        
         initializeComponents();
         setupUI();
         setupEventHandlers();
+
         this.qrProcessor = new QRProcessor(this);
         this.trayManager = new SystemTrayManager(this);
         this.cameraPanel.setQRProcessor(qrProcessor);
+        this.cameraPanel.setScanInterval(settingsManager.getScanInterval());
+
         this.hotkeyManager = new HotkeyManager(this::scanScreenForQRCode);
         this.hotkeyManager.initialize();
 
-        // Check for updates on startup
         checkForUpdates();
     }
 
-    /**
-     * ADDED: Checks for a new application version in the background.
-     */
     private void checkForUpdates() {
         SwingWorker<String[], Void> worker = new SwingWorker<>() {
             @Override
@@ -61,9 +63,8 @@ public class QRScannerApp extends JFrame {
                     URL url = new URL(UPDATE_URL);
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("GET");
-                    conn.setConnectTimeout(5000); // 5-second timeout
+                    conn.setConnectTimeout(5000);
                     conn.setReadTimeout(5000);
-
                     if (conn.getResponseCode() == 200) {
                         try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
                             String latestVersion = reader.readLine();
@@ -74,12 +75,10 @@ public class QRScannerApp extends JFrame {
                         }
                     }
                 } catch (IOException e) {
-                    // Fail silently on network errors
                     System.err.println("Update check failed: " + e.getMessage());
                 }
                 return null;
             }
-
             @Override
             protected void done() {
                 try {
@@ -87,15 +86,9 @@ public class QRScannerApp extends JFrame {
                     if (updateInfo != null && updateInfo.length == 2) {
                         String latestVersion = updateInfo[0];
                         String downloadUrl = updateInfo[1];
-
-                        // Compare versions (e.g., "1.0.1" > "1.0.0")
                         if (latestVersion.compareTo(VERSION) > 0) {
-                            String message = String.format(
-                                "<html>A new version (<b>%s</b>) is available.<br>You are currently running version %s.<br><br>Would you like to open the download page?</html>",
-                                latestVersion, VERSION
-                            );
-                            int response = JOptionPane.showConfirmDialog(QRScannerApp.this, message, "Update Available", JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE);
-                            if (response == JOptionPane.YES_OPTION) {
+                            String message = String.format("<html>A new version (<b>%s</b>) is available.<br>You are currently running version %s.<br><br>Would you like to open the download page?</html>", latestVersion, VERSION);
+                            if (JOptionPane.showConfirmDialog(QRScannerApp.this, message, "Update Available", JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE) == JOptionPane.YES_OPTION) {
                                 Desktop.getDesktop().browse(new URI(downloadUrl));
                             }
                         }
@@ -108,7 +101,7 @@ public class QRScannerApp extends JFrame {
         worker.execute();
     }
     
-    private void initializeComponents() { /* ... same as before ... */
+    private void initializeComponents() {
         setTitle(APP_NAME + " v" + VERSION);
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setSize(800, 600);
@@ -118,7 +111,8 @@ public class QRScannerApp extends JFrame {
             setIconImage(icon);
         } catch (Exception e) { System.err.println("Could not load application icon: " + e.getMessage()); }
     }
-    private void setupUI() { /* ... same as before ... */
+    
+    private void setupUI() {
         setLayout(new BorderLayout());
         JPanel mainPanel = new JPanel(new BorderLayout());
         cameraPanel = new CameraPanel();
@@ -129,7 +123,8 @@ public class QRScannerApp extends JFrame {
         add(mainPanel, BorderLayout.CENTER);
         setJMenuBar(createMenuBar());
     }
-    private JPanel createControlPanel() { /* ... same as before ... */
+    
+    private JPanel createControlPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         scanButton = new JButton("Start Scanning");
         scanButton.setPreferredSize(new Dimension(140, 40));
@@ -144,7 +139,8 @@ public class QRScannerApp extends JFrame {
         panel.add(aboutButton);
         return panel;
     }
-    private JPanel createStatusPanel() { /* ... same as before ... */
+    
+    private JPanel createStatusPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createEtchedBorder());
         statusLabel = new JLabel("Ready to scan QR codes...");
@@ -152,7 +148,8 @@ public class QRScannerApp extends JFrame {
         panel.add(statusLabel, BorderLayout.CENTER);
         return panel;
     }
-    private JMenuBar createMenuBar() { /* ... same as before ... */
+    
+    private JMenuBar createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
         JMenu fileMenu = new JMenu("File");
         JMenuItem createQrItem = new JMenuItem("Create QR Code...");
@@ -185,7 +182,8 @@ public class QRScannerApp extends JFrame {
         menuBar.add(helpMenu);
         return menuBar;
     }
-    private void scanScreenForQRCode() { /* ... same as before ... */
+    
+    private void scanScreenForQRCode() {
         trayManager.showTrayMessage("Scanning screen for QR Code...", "Scan Initiated");
         SwingWorker<String, Void> worker = new SwingWorker<>() {
             @Override
@@ -211,7 +209,8 @@ public class QRScannerApp extends JFrame {
         };
         worker.execute();
     }
-    private void scanFromFile() { /* ... same as before ... */
+    
+    private void scanFromFile() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Select QR Code Image(s) or PDF(s)");
         fileChooser.setFileFilter(new FileNameExtensionFilter("Image & PDF Files", "png", "jpg", "jpeg", "bmp", "pdf"));
@@ -226,7 +225,8 @@ public class QRScannerApp extends JFrame {
             }
         }
     }
-    private void processSingleFileWithWorker(File file) { /* ... same as before ... */
+    
+    private void processSingleFileWithWorker(File file) {
         SwingWorker<String, Void> worker = new SwingWorker<>() {
             @Override
             protected String doInBackground() throws Exception { return scanFileForQRCode(file); }
@@ -243,7 +243,8 @@ public class QRScannerApp extends JFrame {
         };
         worker.execute();
     }
-    private void processBatchFilesWithWorker(File[] files) { /* ... same as before ... */
+    
+    private void processBatchFilesWithWorker(File[] files) {
         SwingWorker<Map<String, String>, String> worker = new SwingWorker<>() {
             @Override
             protected Map<String, String> doInBackground() throws Exception {
@@ -292,7 +293,8 @@ public class QRScannerApp extends JFrame {
         };
         worker.execute();
     }
-    private String scanFileForQRCode(File file) throws IOException { /* ... same as before ... */
+    
+    private String scanFileForQRCode(File file) throws IOException {
         String extension = file.getName().substring(file.getName().lastIndexOf('.') + 1).toLowerCase();
         if ("pdf".equals(extension)) {
             try (PDDocument document = PDDocument.load(file)) {
@@ -310,15 +312,18 @@ public class QRScannerApp extends JFrame {
         }
         return null;
     }
-    private void setupEventHandlers() { /* ... same as before ... */
+    
+    private void setupEventHandlers() {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) { exitApplication(); }
         });
         scanButton.addActionListener(e -> toggleScanning());
     }
+    
     public void toggleScanning() { if (cameraPanel.isScanning()) stopScanning(); else startScanning(); }
-    private void startScanning() { /* ... same as before ... */
+    
+    private void startScanning() {
         try {
             cameraPanel.startCamera();
             scanButton.setText("Stop Scanning");
@@ -326,14 +331,17 @@ public class QRScannerApp extends JFrame {
             updateStatus("Scanning for QR codes...");
         } catch (Exception e) { showError("Failed to start camera: " + e.getMessage()); }
     }
-    private void stopScanning() { /* ... same as before ... */
+    
+    private void stopScanning() {
         cameraPanel.stopCamera();
         scanButton.setText("Start Scanning");
         trayManager.setTrayIconAnimated(false);
         updateStatus("Scanning stopped.");
     }
+    
     public void updateStatus(String message) { SwingUtilities.invokeLater(() -> statusLabel.setText(message)); }
-    public void onQRCodeDetected(String qrContent) { /* ... same as before ... */
+    
+    public void onQRCodeDetected(String qrContent) {
         SwingUtilities.invokeLater(() -> {
             updateStatus("QR Code detected! Processing...");
             String qrType = qrProcessor.determineQRType(qrContent).name();
@@ -341,7 +349,8 @@ public class QRScannerApp extends JFrame {
             qrProcessor.processQRCode(qrContent);
         });
     }
-    private void minimizeToTray() { /* ... same as before ... */
+    
+    private void minimizeToTray() {
         if (trayManager.isSystemTraySupported()) {
             setVisible(false);
             trayManager.showTrayMessage("QR Scanner is running in the background.");
@@ -349,7 +358,8 @@ public class QRScannerApp extends JFrame {
             setExtendedState(JFrame.ICONIFIED);
         }
     }
-    public void restoreFromTray() { /* ... same as before ... */
+    
+    public void restoreFromTray() {
         SwingUtilities.invokeLater(() -> {
             setVisible(true);
             setExtendedState(JFrame.NORMAL);
@@ -357,7 +367,8 @@ public class QRScannerApp extends JFrame {
             requestFocus();
         });
     }
-    private void exitApplication() { /* ... same as before ... */
+    
+    private void exitApplication() {
         int option = JOptionPane.showConfirmDialog(this, "Are you sure you want to exit?", "Confirm Exit", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (option == JOptionPane.YES_OPTION) {
             hotkeyManager.cleanup();
@@ -367,30 +378,61 @@ public class QRScannerApp extends JFrame {
             System.exit(0);
         }
     }
-    private void showSettings() { /* ... same as before ... */
-        SettingsDialog settingsDialog = new SettingsDialog(this);
+    
+    private void showSettings() {
+        SettingsDialog settingsDialog = new SettingsDialog(this, settingsManager);
         settingsDialog.setVisible(true);
     }
-    private void showHistory() { /* ... same as before ... */
+    
+    private void showHistory() {
         HistoryDialog historyDialog = new HistoryDialog(this, historyManager);
         historyDialog.setVisible(true);
     }
-    private void showExportDialog() { /* ... same as before ... */
+    
+    private void showExportDialog() {
         QRExportDialog exportDialog = new QRExportDialog(this, qrProcessor);
         exportDialog.setVisible(true);
     }
-    private void showAboutDialog() { /* ... same as before ... */
+    
+    private void showAboutDialog() {
         String aboutText = String.format("<html><h2>%s</h2><p>Version: %s</p><br><p>A desktop utility for scanning QR codes from a webcam.</p><b>Features:</b><ul><li>WiFi network connection</li><li>URL opening in default browser</li><li>System tray integration</li></ul></html>", APP_NAME, VERSION);
         JOptionPane.showMessageDialog(this, aboutText, "About", JOptionPane.INFORMATION_MESSAGE);
     }
-    private void showError(String message) { /* ... same as before ... */
+    
+    private void showError(String message) {
         JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
         updateStatus("Error: " + message);
     }
-    public static void main(String[] args) { /* ... same as before ... */
+    
+    public CameraPanel getCameraPanel() {
+        return this.cameraPanel;
+    }
+
+    public static void main(String[] args) {
+        SettingsManager settings = new SettingsManager();
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception e) { System.err.println("Could not set system look and feel: " + e.getMessage()); }
+            String theme = settings.getTheme();
+            switch (theme) {
+                case "Dark (Nimbus)":
+                    for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                        if ("Nimbus".equals(info.getName())) {
+                            UIManager.setLookAndFeel(info.getClassName());
+                            break;
+                        }
+                    }
+                    break;
+                case "Light (Metal)":
+                    UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+                    break;
+                case "System Default":
+                default:
+                    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                    break;
+            }
+        } catch (Exception e) {
+            System.err.println("Could not set look and feel: " + e.getMessage());
+        }
+
         System.setProperty("awt.useSystemAAFontSettings", "on");
         System.setProperty("swing.aatext", "true");
         SwingUtilities.invokeLater(() -> new QRScannerApp().setVisible(true));

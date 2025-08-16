@@ -9,14 +9,19 @@ public class ScanHistoryManager {
 
     private static final int MAX_HISTORY_SIZE = 100;
     private final LinkedList<ScanHistoryItem> history;
+    private final SettingsManager settingsManager;
 
-    public ScanHistoryManager() {
+    public ScanHistoryManager(SettingsManager settingsManager) {
+        this.settingsManager = settingsManager;
         this.history = new LinkedList<>();
     }
 
     public void addHistoryItem(String content, String type) {
+        if (!settingsManager.isHistorySavingEnabled()) {
+            return; // Do nothing if history is disabled
+        }
         if (history.size() >= MAX_HISTORY_SIZE) {
-            history.removeLast(); // Remove the oldest item to maintain size limit
+            history.removeLast();
         }
         history.addFirst(new ScanHistoryItem(content, type));
     }

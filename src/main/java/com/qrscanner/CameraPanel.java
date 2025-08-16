@@ -16,9 +16,9 @@ public class CameraPanel extends JPanel {
     private WebcamPanel webcamPanel;
     private QRProcessor qrProcessor;
     private boolean scanning = false;
-    // IMPROVEMENT: Use ExecutorService type to access shutdown methods
     private final ExecutorService qrScanExecutor = Executors.newSingleThreadExecutor();
     private volatile boolean processingQR = false;
+    private long scanInterval = 333; // Default interval
     private JLabel statusLabel;
     private JComboBox<String> cameraSelector;
     private JLabel noImageLabel;
@@ -27,6 +27,10 @@ public class CameraPanel extends JPanel {
         initializeComponents();
         setupUI();
         detectAvailableCameras();
+    }
+    
+    public void setScanInterval(long millis) {
+        this.scanInterval = Math.max(100, millis); // Ensure at least 100ms delay
     }
     
     private void initializeComponents() {
@@ -122,12 +126,10 @@ public class CameraPanel extends JPanel {
         if (webcamPanel != null) {
             webcamPanel.stop();
             remove(webcamPanel);
-            // IMPROVEMENT: Help GC by nullifying large objects
             webcamPanel = null;
         }
         if (webcam != null && webcam.isOpen()) {
             webcam.close();
-            // IMPROVEMENT: Help GC by nullifying large objects
             webcam = null;
         }
         add(noImageLabel, BorderLayout.CENTER);
@@ -141,16 +143,13 @@ public class CameraPanel extends JPanel {
             while (scanning) {
                 if (processingQR) continue;
                 try {
-                    // Check scanning flag again in case it changed while sleeping
                     if (!scanning || webcam == null) break;
-                    
                     BufferedImage image = webcam.getImage();
                     if (image != null) {
                         processingQR = true;
                         processImageForQR(image);
                     }
-                    // IMPROVEMENT: Reduce scan frequency to lower memory churn from creating images.
-                    Thread.sleep(333); // Approx. 3 scans per second
+                    Thread.sleep(this.scanInterval);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -182,12 +181,9 @@ public class CameraPanel extends JPanel {
         if (parent instanceof QRScannerApp) ((QRScannerApp) parent).onQRCodeDetected(qrContent);
     }
     
-    /**
-     * IMPROVEMENT: Add a cleanup method to shut down the background thread executor.
-     */
     public void cleanup() {
         stopCamera();
-        qrScanExecutor.shutdownNow(); // Immediately stop the scanning thread
+        qrScanExecutor.shutdownNow();
         try {
             if (!qrScanExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
                 System.err.println("QR scan thread did not terminate gracefully.");
@@ -200,6 +196,7 @@ public class CameraPanel extends JPanel {
     
     public void setQRProcessor(QRProcessor processor) { this.qrProcessor = processor; }
     public boolean isScanning() { return scanning; }
+    
     @Override
     public void removeNotify() {
         super.removeNotify();

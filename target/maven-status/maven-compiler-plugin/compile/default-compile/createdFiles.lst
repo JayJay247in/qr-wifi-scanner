@@ -5,6 +5,7 @@ com\qrscanner\QRProcessor$1.class
 com\qrscanner\CameraPanel.class
 com\qrscanner\WiFiManager.class
 com\qrscanner\QRExportDialog$ImagePanel.class
+com\qrscanner\QRScannerApp$5.class
 com\qrscanner\QRExportDialog$1.class
 com\qrscanner\ScanHistoryManager$ScanHistoryItem.class
 com\qrscanner\SettingsDialog.class

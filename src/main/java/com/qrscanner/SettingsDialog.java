@@ -6,12 +6,16 @@ import java.awt.*;
 
 public class SettingsDialog extends JDialog {
 
+    private final SettingsManager settingsManager;
     private JComboBox<String> themeComboBox;
     private JSlider scanIntervalSlider;
+    private JCheckBox saveHistoryCheckBox;
 
-    public SettingsDialog(JFrame parent) {
-        super(parent, "Settings", true); // true for modal
+    public SettingsDialog(JFrame parent, SettingsManager settingsManager) {
+        super(parent, "Settings", true);
+        this.settingsManager = settingsManager;
         initializeUI();
+        loadSettings();
     }
 
     private void initializeUI() {
@@ -22,11 +26,20 @@ public class SettingsDialog extends JDialog {
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.addTab("General", createGeneralPanel());
         tabbedPane.addTab("Camera", createCameraPanel());
-        // Placeholder for a future feature from your list
-        tabbedPane.addTab("History", new JPanel());
+        tabbedPane.addTab("History", createHistoryPanel());
 
         add(tabbedPane, BorderLayout.CENTER);
         add(createButtonPanel(), BorderLayout.SOUTH);
+    }
+
+    private void loadSettings() {
+        // General
+        themeComboBox.setSelectedItem(settingsManager.getTheme());
+        // Camera
+        long interval = settingsManager.getScanInterval();
+        scanIntervalSlider.setValue((int) (1000 / interval));
+        // History
+        saveHistoryCheckBox.setSelected(settingsManager.isHistorySavingEnabled());
     }
 
     private JPanel createGeneralPanel() {
@@ -36,7 +49,6 @@ public class SettingsDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
 
-        // Look and Feel (Theme) Setting
         gbc.gridx = 0;
         gbc.gridy = 0;
         panel.add(new JLabel("Application Theme:"), gbc);
@@ -47,8 +59,10 @@ public class SettingsDialog extends JDialog {
         themeComboBox = new JComboBox<>(new String[]{"System Default", "Light (Metal)", "Dark (Nimbus)"});
         panel.add(themeComboBox, gbc);
 
-        // Add a spacer to push everything to the top
-        gbc.gridy = 1;
+        gbc.gridy++;
+        panel.add(new JLabel("<html><i>(Requires restart to take full effect)</i></html>"), gbc);
+
+        gbc.gridy++;
         gbc.weighty = 1.0;
         panel.add(new JLabel(), gbc);
 
@@ -62,24 +76,30 @@ public class SettingsDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
 
-        // Scan Interval Setting
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 2;
-        panel.add(new JLabel("Scan Interval (Scans per second):"), gbc);
+        panel.add(new JLabel("Scan Frequency (Scans per second):"), gbc);
 
-        gbc.gridy = 1;
-        scanIntervalSlider = new JSlider(1, 10, 3); // Min 1, Max 10, Default 3 scans/sec
+        gbc.gridy++;
+        scanIntervalSlider = new JSlider(1, 10, 3);
         scanIntervalSlider.setMajorTickSpacing(1);
         scanIntervalSlider.setPaintTicks(true);
         scanIntervalSlider.setPaintLabels(true);
         panel.add(scanIntervalSlider, gbc);
 
-        // Add a spacer to push everything to the top
-        gbc.gridy = 2;
+        gbc.gridy++;
         gbc.weighty = 1.0;
         panel.add(new JLabel(), gbc);
 
+        return panel;
+    }
+
+    private JPanel createHistoryPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        saveHistoryCheckBox = new JCheckBox("Save Scan History");
+        panel.add(saveHistoryCheckBox);
         return panel;
     }
 
@@ -107,21 +127,28 @@ public class SettingsDialog extends JDialog {
     }
 
     private void applySettings() {
-        // In a future step, this method would actually change the app's behavior.
-        // For now, we just print the selected values to confirm it works.
+        String originalTheme = settingsManager.getTheme();
         String selectedTheme = (String) themeComboBox.getSelectedItem();
+
+        // Save General settings
+        settingsManager.setTheme(selectedTheme);
+
+        // Save Camera settings
         int scansPerSecond = scanIntervalSlider.getValue();
-        long intervalMillis = 1000 / scansPerSecond;
+        long intervalMillis = 1000 / Math.max(1, scansPerSecond);
+        settingsManager.setScanInterval(intervalMillis);
 
-        System.out.println("--- Settings Applied ---");
-        System.out.println("Theme: " + selectedTheme);
-        System.out.println("Scans per second: " + scansPerSecond + " (~" + intervalMillis + "ms interval)");
-        System.out.println("------------------------");
+        // Save History settings
+        settingsManager.setHistorySavingEnabled(saveHistoryCheckBox.isSelected());
 
-        // Example of how you would notify the main app in the future:
-        // ((QRScannerApp) getOwner()).applyTheme(selectedTheme);
-        // ((QRScannerApp) getOwner()).getCameraPanel().setScanInterval(intervalMillis);
+        // Apply settings that can be changed live
+        QRScannerApp mainApp = (QRScannerApp) getOwner();
+        mainApp.getCameraPanel().setScanInterval(intervalMillis);
 
-        JOptionPane.showMessageDialog(this, "Settings applied (check console output).", "Settings", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, "Settings applied.", "Settings", JOptionPane.INFORMATION_MESSAGE);
+
+        if (!originalTheme.equals(selectedTheme)) {
+            JOptionPane.showMessageDialog(this, "A restart is required for the theme change to take full effect.", "Restart Required", JOptionPane.INFORMATION_MESSAGE);
+        }
     }
 }
